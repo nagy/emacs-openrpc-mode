@@ -1,4 +1,4 @@
-#! /run/current-system/sw/bin/bash
+#!/usr/bin/env bash
 # A minimal JSON-RPC 2.0 stdio server that responds to rpc.discover
 # Used for testing openrpc-mode.el
 

@@ -1,4 +1,4 @@
-#! /run/current-system/sw/bin/bash
+#!/usr/bin/env bash
 # Simulates tauri-jsonrpc-husk: sends a "ready" notification, then
 # the rpc.discover response, all as raw JSON lines.
 set -e

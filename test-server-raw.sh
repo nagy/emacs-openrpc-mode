@@ -1,4 +1,4 @@
-#! /run/current-system/sw/bin/bash
+#!/usr/bin/env bash
 # A minimal JSON-RPC 2.0 stdio server that speaks raw JSON lines
 # (no Content-Length headers). Used for testing jsonrpc-noenvelope.
 
