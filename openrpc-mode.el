@@ -191,6 +191,19 @@ Keeps the results buffer intact for browsing."
 ;;; Main entry point
 
 ;;;###autoload
+(defun openrpc-mode--find-buffer (command)
+  "Return an existing `openrpc-mode' buffer for COMMAND with a
+living connection, or nil."
+  (cl-find-if
+   (lambda (buf)
+     (with-current-buffer buf
+       (and (derived-mode-p 'openrpc-mode)
+            (string= openrpc-mode--command command)
+            openrpc-mode--connection
+            (jsonrpc-running-p openrpc-mode--connection))))
+   (buffer-list)))
+
+;;;###autoload
 (defun openrpc-mode-discover (command)
   "Connect to COMMAND via stdio and discover its OpenRPC methods.
 
@@ -203,7 +216,19 @@ setting."
   (interactive "sOpenRPC command: ")
   (when (string-blank-p command)
     (user-error "Command must not be empty"))
-  (let* ((name (openrpc-mode--connection-name command))
+  ;; Normalise the path: expand ~ and relative paths in the first
+  ;; token (the executable), leaving all arguments unchanged.
+  (when (string-match "\\`\\S-+" command)
+    (let ((first (match-string-no-properties 0 command))
+          (expanded (expand-file-name (match-string-no-properties 0 command))))
+      (unless (string= first expanded)
+        (setq command (replace-match expanded nil nil command)))))
+  ;; Reuse existing buffer if the command is already running
+  (unless (when-let* ((existing (openrpc-mode--find-buffer command)))
+            (pop-to-buffer existing)
+            (message "OpenRPC: already connected to `%s'" command)
+            t)
+    (let* ((name (openrpc-mode--connection-name command))
          (effective-envelope
           (if current-prefix-arg
               (not openrpc-mode-use-envelope)
@@ -243,7 +268,7 @@ setting."
      (lambda ()
        (openrpc-mode--on-discover-timeout conn)))
     ;; Show the (still empty) results buffer
-    (pop-to-buffer buffer)))
+    (pop-to-buffer buffer))))
 
 (defun openrpc-mode--on-discover-success (result conn)
   "Handle successful `rpc.discover' response.
