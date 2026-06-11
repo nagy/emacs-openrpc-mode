@@ -243,21 +243,13 @@ setting."
      (lambda ()
        (openrpc-mode--on-discover-timeout conn)))
     ;; Show the (still empty) results buffer
-    (pop-to-buffer buffer)
-    (message
-     (concat "Discovering OpenRPC methods via `%s'..."
-             " (transport: %s)")
-     command
-     (if (eq class 'jsonrpc-noenvelope)
-         "newline-delimited JSON"
-       "Content-Length envelope"))))
+    (pop-to-buffer buffer)))
 
 (defun openrpc-mode--on-discover-success (result conn)
   "Handle successful `rpc.discover' response.
 RESULT is the JSONRPC result (the OpenRPC document).
 CONN is the `jsonrpc-process-connection'."
   (let* ((methods (plist-get result :methods))
-         (count   (length methods))
          (buffer  (get-buffer openrpc-mode-buffer-name)))
     (if (not (sequencep methods))
         (progn
@@ -267,9 +259,7 @@ CONN is the `jsonrpc-process-connection'."
       (when buffer
         (with-current-buffer buffer
           (setq openrpc-mode--methods (append methods nil))
-          (openrpc-mode--refresh)))
-      (message "Discovered %d OpenRPC method(s) from `%s'."
-               count (jsonrpc-name conn)))))
+          (openrpc-mode--refresh))))))
 
 (defun openrpc-mode--on-discover-error (err conn)
   "Handle error from `rpc.discover' request.
