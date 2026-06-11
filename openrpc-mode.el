@@ -55,6 +55,7 @@
 (require 'jsonrpc)
 (require 'jsonrpc-noenvelope)
 (require 'tabulated-list)
+(require 'bookmark)
 (eval-when-compile (require 'cl-lib))
 
 ;;; Customization
@@ -96,6 +97,10 @@ the HTTP-style envelope."
 
 (defvar-local openrpc-mode--methods nil
   "List of discovered methods, each a plist from the OpenRPC document.")
+
+(defvar-local openrpc-mode--command nil
+  "The shell command used to start this OpenRPC connection.
+Saved in bookmarks so the connection can be restored.")
 
 (defvar openrpc-mode-map
   (let ((map (make-sparse-keymap)))
@@ -148,6 +153,7 @@ property."
          ("Result Type" 30 t)])
   (setq tabulated-list-sort-key (cons "Method" nil))
   (add-hook 'tabulated-list-revert-hook #'openrpc-mode-revert nil t)
+  (setq bookmark-make-record-function #'openrpc-mode--make-bookmark-record)
   (tabulated-list-init-header))
 
 ;;; Connection management
@@ -218,7 +224,8 @@ setting."
     ;; Prepare the results buffer
     (with-current-buffer buffer
       (openrpc-mode)
-      (setq openrpc-mode--connection conn
+      (setq openrpc-mode--command command
+            openrpc-mode--connection conn
             openrpc-mode--methods nil)
       (openrpc-mode--refresh))
     ;; Issue the rpc.discover request
@@ -236,7 +243,7 @@ setting."
      (lambda ()
        (openrpc-mode--on-discover-timeout conn)))
     ;; Show the (still empty) results buffer
-    (display-buffer buffer)
+    (pop-to-buffer buffer)
     (message
      (concat "Discovering OpenRPC methods via `%s'..."
              " (transport: %s)")
@@ -353,6 +360,27 @@ last command."
                           ""))))
     (special-mode)
     (goto-char (point-min))))
+
+;;; Bookmarks
+
+;;;###autoload
+(defun openrpc-mode-bookmark-handler (bmk)
+  "Jump to an OpenRPC methods buffer from bookmark BMK.
+Calls `openrpc-mode-discover' with the saved command."
+  (let ((command (bookmark-prop-get bmk 'openrpc-command)))
+    (unless command
+      (user-error "Bookmark has no OpenRPC command"))
+    (openrpc-mode-discover command)))
+
+(defun openrpc-mode--make-bookmark-record ()
+  "Create a bookmark record for the current `openrpc-mode' buffer."
+  (let* ((cmd openrpc-mode--command)
+         (name (format "OpenRPC: %s" cmd)))
+    `(,name
+      (handler . openrpc-mode-bookmark-handler)
+      (openrpc-command . ,cmd)
+      (buffer-name . ,(buffer-name))
+      (location . ,(format "OpenRPC `%s'" cmd)))))
 
 ;;; Diagnostics
 
