@@ -26,7 +26,7 @@ melpaBuild {
       request, and displays the discovered methods in a
       tabulated-list-mode derived buffer.
     '';
-    license = lib.licenses.gpl3Plus;
+    license = lib.licenses.agpl3Plus;
     homepage = "https://github.com/yourname/openrpc-mode";
     maintainers = with lib.maintainers; [ nagy ];
     platforms = lib.platforms.unix;

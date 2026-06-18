@@ -1,0 +1,22 @@
+#+title: openrpc-mode
+
+Browse OpenRPC methods from a JSON-RPC endpoint over stdio.
+
+* Usage
+
+=M-x openrpc-mode-discover=, enter a command that launches a JSON-RPC
+endpoint:
+
+: my-cli --stdio
+
+The package sends an =rpc.discover= request and lists methods in a
+buffer.  =RET= shows method details, =g= re-discovers, =E= shows the
+JSONRPC events log.
+
+* References
+
+- https://www.open-rpc.org/
+
+* License
+
+[[./LICENSE][AGPL3+]]

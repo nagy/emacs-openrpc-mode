@@ -1,12 +1,12 @@
 ;;; openrpc-mode.el --- Discover and browse OpenRPC methods  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2026  Free Software Foundation, Inc.
+;; Copyright (C) 2026  Daniel Nagy
 
-;; Author: <your-name>
+;; Author: Daniel Nagy
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "30.1") (jsonrpc "1.0") (jsonrpc-noenvelope "0.1.0"))
 ;; Keywords: tools, comm, languages
-;; URL: https://github.com/yourname/openrpc-mode
+;; URL: https://github.com/nagy/emacs-openrpc-mode
 
 ;; This file is not part of GNU Emacs.
 
