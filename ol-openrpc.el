@@ -54,10 +54,11 @@ PATH is a shell command string passed to `openrpc-mode-discover'."
         t))))
 
 ;;;###autoload
-(org-link-set-parameters "openrpc"
-  :follow #'openrpc-link-follow
-  :complete #'openrpc-link-complete
-  :store #'openrpc-link-store)
+(with-eval-after-load 'ol
+  (org-link-set-parameters "openrpc"
+    :follow #'openrpc-link-follow
+    :complete #'openrpc-link-complete
+    :store #'openrpc-link-store))
 
 (provide 'ol-openrpc)
 
