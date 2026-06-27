@@ -160,14 +160,16 @@ property."
 
 (defun openrpc-mode--make-process-for-connection (command connection-name)
   "Create a subprocess from COMMAND, using CONNECTION-NAME as
-the Emacs process name.  Stderr is captured to a separate buffer
-named `*CONNECTION-NAME stderr*'.  The jsonrpc library's
+the Emacs process name.  COMMAND is passed to `sh -c', so shell
+syntax (pipes, redirects, variable expansion) is supported.
+Stderr is captured to a separate buffer named
+`*CONNECTION-NAME stderr*'.  The jsonrpc library's
 `initialize-instance :after' method detects that this buffer
 already exists and adds its forwarding hook, so stderr lines
 end up in the events buffer."
   (make-process
    :name connection-name
-   :command (split-string-and-unquote command)
+   :command `("sh" "-c" ,command)
    :connection-type 'pipe
    :stderr (get-buffer-create (format "*%s stderr*" connection-name))
    :noquery t))
@@ -183,7 +185,9 @@ Keeps the results buffer intact for browsing."
                (jsonrpc-name conn)))))
 
 (defun openrpc-mode--connection-name (command)
-  "Derive a short connection name from COMMAND."
+  "Derive a short connection name from COMMAND.
+COMMAND is a shell command string passed to `sh -c'; the first
+word is used as the base for the connection name."
   (let* ((parts (split-string-and-unquote command))
          (base (file-name-nondirectory (car parts))))
     (format "openrpc-%s" base)))
@@ -208,7 +212,13 @@ living connection, or nil."
   "Connect to COMMAND via stdio and discover its OpenRPC methods.
 
 COMMAND is a shell command string that launches a JSON-RPC
-endpoint over stdio.
+endpoint over stdio.  The command is passed to `sh -c', so full
+shell syntax is supported: pipes, redirects, environment
+variables, etc.  For example:
+
+    my-cli --stdio --verbose
+    socat EXEC:my-cli,pty STDIO
+    env DEBUG=1 my-cli --stdio 2>/tmp/debug.log
 
 When called with a prefix argument \[universal-argument], the
 transport is toggled from the `openrpc-mode-use-envelope'
@@ -218,7 +228,9 @@ setting."
     (user-error "Command must not be empty"))
   ;; Normalise the path: expand ~ and relative paths in the first
   ;; token (the executable), leaving all arguments unchanged.
-  (when (string-match "\\`\\S-+" command)
+  ;; Only expand if the path starts with ./, ../, or ~/ so that
+  ;; bare command names (e.g. "nix-shell") are found via $PATH.
+  (when (string-match "\\`\\(\\.\\.?/\\|~/\\)\\S-*" command)
     (let ((first (match-string-no-properties 0 command))
           (expanded (expand-file-name (match-string-no-properties 0 command))))
       (unless (string= first expanded)
