@@ -70,13 +70,6 @@
   :type 'string
   :group 'openrpc-mode)
 
-(defcustom openrpc-mode-events-buffer-size 1000
-  "Maximum size of the JSONRPC events buffer (in lines).
-Set to nil for unlimited, 0 to disable."
-  :type '(choice (const :tag "Unlimited" nil)
-                 (integer :tag "Lines"))
-  :group 'openrpc-mode)
-
 (defcustom openrpc-mode-use-envelope t
   "Whether to use the HTTP Content-Length envelope for JSONRPC.
 Non-nil (the default) uses `jsonrpc-process-connection', which
@@ -158,22 +151,6 @@ property."
 
 ;;; Connection management
 
-(defun openrpc-mode--make-process-for-connection (command connection-name)
-  "Create a subprocess from COMMAND, using CONNECTION-NAME as
-the Emacs process name.  COMMAND is passed to `sh -c', so shell
-syntax (pipes, redirects, variable expansion) is supported.
-Stderr is captured to a separate buffer named
-`*CONNECTION-NAME stderr*'.  The jsonrpc library's
-`initialize-instance :after' method detects that this buffer
-already exists and adds its forwarding hook, so stderr lines
-end up in the events buffer."
-  (make-process
-   :name connection-name
-   :command `("sh" "-c" ,command)
-   :connection-type 'pipe
-   :stderr (get-buffer-create (format "*%s stderr*" connection-name))
-   :noquery t))
-
 (defun openrpc-mode--on-shutdown (conn)
   "Called when JSONRPC connection CONN is shut down.
 Keeps the results buffer intact for browsing."
@@ -248,15 +225,18 @@ setting."
          (class (if effective-envelope
                     'jsonrpc-process-connection
                   'jsonrpc-noenvelope))
-         (events-config `(:size ,openrpc-mode-events-buffer-size
-                          :format full))
-         (proc (openrpc-mode--make-process-for-connection command name))
+         (proc (make-process
+                :name name
+                :command `("sh" "-c" ,command)
+                :connection-type 'pipe
+                :stderr (get-buffer-create (format "*%s stderr*" name))
+                :noquery t))
          (conn (make-instance
                 class
                 :name name
                 :process proc
                 :on-shutdown #'openrpc-mode--on-shutdown
-                :events-buffer-config events-config))
+                :events-buffer-config '(:size 1000 :format full)))
          (buffer (get-buffer-create openrpc-mode-buffer-name)))
     ;; Prepare the results buffer
     (with-current-buffer buffer

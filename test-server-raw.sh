@@ -1,17 +1,26 @@
 #!/usr/bin/env bash
 # A minimal JSON-RPC 2.0 stdio server that speaks raw JSON lines
 # (no Content-Length headers). Used for testing jsonrpc-noenvelope.
+# Pass --ready to emit a "ready" notification before rpc.discover.
 
 set -e
 
+READY_MODE=
+[ "${1:-}" = "--ready" ] && READY_MODE=1
+
 while IFS= read -r line; do
-  # Parse method from the line
   method=$(echo "$line" | sed -n 's/.*"method"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 
   if [ "$method" = "rpc.discover" ]; then
     id=$(echo "$line" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
-    echo '{"jsonrpc":"2.0","id":'"$id"',"result":{"openrpc":"1.2.6","info":{"title":"Test API","version":"1.0.0"},"methods":[{"name":"greet","summary":"Greets the user","params":[{"name":"name","description":"The name to greet"}],"result":{"name":"greeting","description":"A friendly greeting"}},{"name":"add","summary":"Adds two numbers","params":[{"name":"a","description":"First number"},{"name":"b","description":"Second number"}],"result":{"name":"sum"}},{"name":"ping","summary":"Health check","params":[],"result":{"name":"pong"}}]}}'
+    [ -n "$READY_MODE" ] && echo '{"jsonrpc":"2.0","method":"ready","params":{"status":"listening"}}'
+    echo '{"jsonrpc":"2.0","id":'"$id"',"result":{"info":{"description":"Test","title":"test","version":"0.1.0"},"methods":[{"description":"Returns schema.","name":"rpc.discover","params":[]},{"description":"Set title.","name":"window.set_title","params":[{"name":"title","required":true,"schema":{"type":"string"}}]},{"description":"Exit app.","name":"app.exit","params":[]}],"openrpc":"1.2.6"}}'
   else
-    echo '{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}'
+    id=$(echo "$line" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
+    if [ -n "$id" ]; then
+      echo '{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"},"id":'"$id"'}'
+    else
+      echo '{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}'
+    fi
   fi
 done
