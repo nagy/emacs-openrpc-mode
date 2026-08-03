@@ -218,49 +218,49 @@ setting."
             (message "OpenRPC: already connected to `%s'" command)
             t)
     (let* ((name (openrpc-mode--connection-name command))
-         (effective-envelope
-          (if current-prefix-arg
-              (not openrpc-mode-use-envelope)
-            openrpc-mode-use-envelope))
-         (class (if effective-envelope
-                    'jsonrpc-process-connection
-                  'jsonrpc-noenvelope))
-         (proc (make-process
-                :name name
-                :command `("sh" "-c" ,command)
-                :connection-type 'pipe
-                :stderr (get-buffer-create (format "*%s stderr*" name))
-                :noquery t))
-         (conn (make-instance
-                class
-                :name name
-                :process proc
-                :on-shutdown #'openrpc-mode--on-shutdown
-                :events-buffer-config '(:size 1000 :format full)))
-         (buffer (get-buffer-create openrpc-mode-buffer-name)))
-    ;; Prepare the results buffer
-    (with-current-buffer buffer
-      (openrpc-mode)
-      (setq openrpc-mode--command command
-            openrpc-mode--connection conn
-            openrpc-mode--methods nil)
-      (openrpc-mode--refresh))
-    ;; Issue the rpc.discover request
-    (jsonrpc-async-request
-     conn
-     :rpc.discover
-     :jsonrpc-omit ;; no params needed
-     :success-fn
-     (lambda (result)
-       (openrpc-mode--on-discover-success result conn))
-     :error-fn
-     (lambda (err)
-       (openrpc-mode--on-discover-error err conn))
-     :timeout-fn
-     (lambda ()
-       (openrpc-mode--on-discover-timeout conn)))
-    ;; Show the (still empty) results buffer
-    (pop-to-buffer buffer))))
+           (effective-envelope
+            (if current-prefix-arg
+                (not openrpc-mode-use-envelope)
+              openrpc-mode-use-envelope))
+           (class (if effective-envelope
+                      'jsonrpc-process-connection
+                    'jsonrpc-noenvelope))
+           (proc (make-process
+                  :name name
+                  :command `("sh" "-c" ,command)
+                  :connection-type 'pipe
+                  :stderr (get-buffer-create (format "*%s stderr*" name))
+                  :noquery t))
+           (conn (make-instance
+                  class
+                  :name name
+                  :process proc
+                  :on-shutdown #'openrpc-mode--on-shutdown
+                  :events-buffer-config '(:size 1000 :format full)))
+           (buffer (get-buffer-create openrpc-mode-buffer-name)))
+      ;; Prepare the results buffer
+      (with-current-buffer buffer
+        (openrpc-mode)
+        (setq openrpc-mode--command command
+              openrpc-mode--connection conn
+              openrpc-mode--methods nil)
+        (openrpc-mode--refresh))
+      ;; Issue the rpc.discover request
+      (jsonrpc-async-request
+       conn
+       :rpc.discover
+       :jsonrpc-omit ;; no params needed
+       :success-fn
+       (lambda (result)
+         (openrpc-mode--on-discover-success result conn))
+       :error-fn
+       (lambda (err)
+         (openrpc-mode--on-discover-error err conn))
+       :timeout-fn
+       (lambda ()
+         (openrpc-mode--on-discover-timeout conn)))
+      ;; Show the (still empty) results buffer
+      (pop-to-buffer buffer))))
 
 (defun openrpc-mode--on-discover-success (result conn)
   "Handle successful `rpc.discover' response.
