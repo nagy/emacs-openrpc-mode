@@ -27,7 +27,7 @@ melpaBuild {
       tabulated-list-mode derived buffer.
     '';
     license = lib.licenses.agpl3Plus;
-    homepage = "https://github.com/yourname/openrpc-mode";
+    homepage = "https://github.com/nagy/emacs-openrpc-mode";
     maintainers = with lib.maintainers; [ nagy ];
     platforms = lib.platforms.unix;
   };
