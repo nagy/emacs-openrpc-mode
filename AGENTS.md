@@ -25,14 +25,14 @@ bookmarks and Org `openrpc:` links).
 |`ol-openrpc.el`        |Org `openrpc:` link type (follow / complete / store)                                 |
 |`test-server.sh`       |Manual fixture: Content-Length envelope transport, single-shot                       |
 |`test-server-raw.sh`   |Manual fixture: raw newline-JSON transport, looping, `--ready` mode                  |
-|`default.nix`          |`melpaBuild` packaging; warnings promoted to errors                                  |
-|`shell.nix`            |Dev shell; builds `jsonrpc-noenvelope` as a separate package                         |
+|`flake.nix`            |flake-parts packaging: `openrpc-mode` + `jsonrpc-noenvelope` packages, devShell, treefmt|
+|`flake.lock`           |Pinned flake inputs (nixpkgs, flake-parts, treefmt-nix)                               |
 |`README.org`           |User documentation (minimal)                                                         |
 
 ## Build and verify
 
-Run from the repository root. Byte-compilation must stay warning-free:
-`default.nix` sets `turnCompilationWarningToError = true`.
+Run from the repository root. Byte-compilation must stay warning-free: the
+flake sets `turnCompilationWarningToError = true` on both packages.
 
 ```sh
 # Byte-compile (fast, verified)
@@ -42,11 +42,16 @@ emacs -Q --batch -L . -f batch-byte-compile \
 # checkdoc (warnings are printed to the message buffer)
 emacs -Q --batch -L . --eval '(checkdoc-file "openrpc-mode.el")'
 
-# Build the MELPA-style package
-nix-build default.nix
+# Build both packages (default = openrpc-mode)
+nix build
 
-# Dev shell (or `nix develop` when the nix-command feature is enabled)
-nix-shell shell.nix
+# Flake checks (formatting) and formatter
+nix flake check
+nix fmt
+
+# Dev shell (`nix-shell` and `default.nix`/`shell.nix` are gone)
+nix develop
+
 ```
 
 There is **no automated test suite yet**. Do not invoke a test runner that does
@@ -81,9 +86,13 @@ answering `rpc.discover`.
   `jsonrpc-noenvelope`, selected by prefix argument or the
   `openrpc-mode-use-envelope` defcustom. Never assume one transport.
 - **`jsonrpc-noenvelope` is a separate package**, declared in
-  `Package-Requires`, not vendored into `openrpc-mode.el`. However,
-  `default.nix` currently bundles it by accident (`fileSpecs` default of
-  `*.el`). Treat it as standalone: its changes ship independently.
+  `Package-Requires`. The flake now builds it as its own derivation with
+  `fileSpecs = [ "jsonrpc-noenvelope.el" ]` (no more accidental `*.el`
+  bundling). Treat it as standalone: its changes ship independently.
+- **Flake sources are git-tracked files only.** `lib.cleanSource ./.` sees just
+  what git knows, so an untracked `*.el` is invisible to `nix build` (it fails
+  with `Missing library "jsonrpc-noenvelope.el" matching package name`). Always
+  `git add` new source files before building.
 - **Known lifecycle bug: multi-connection clobbering.** Multiple connections
   currently clobber one shared results buffer and can leak or duplicate
   subprocesses. This is a known, analyzed defect, not a design to preserve.
@@ -99,4 +108,4 @@ answering `rpc.discover`.
 ## License
 
 AGPL-3.0-or-later (`LICENSE` is the AGPLv3 text). Keep all file headers,
-`default.nix` (`lib.licenses.agpl3Plus`), and `README.org` consistent.
+`flake.nix` (`lib.licenses.agpl3Plus`), and `README.org` consistent.
