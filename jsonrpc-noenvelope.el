@@ -67,9 +67,9 @@ Return nil if no complete JSON object is found."
     ret))
 
 (defun jsonrpc-noenvelope--filter (proc msg)
-  "Process filter for `jsonrpc-noenvelope' connections.
-Inserts MSG into PROC's buffer, then parses all complete
-JSON objects and dispatches them via `jsonrpc-connection-receive'."
+  "Handle PROC's output MSG for a `jsonrpc-noenvelope' connection.
+Insert MSG into PROC's buffer, then parse all complete JSON
+objects and dispatch them via `jsonrpc-connection-receive'."
   (with-current-buffer (process-buffer proc)
     (let ((point-before (point)))
       ;; Insert raw data at the end of the buffer, then return
@@ -113,7 +113,8 @@ JSON objects and dispatches them via `jsonrpc-connection-receive'."
                                        (_result nil result-supplied-p)
                                        error
                                        _partial)
-  "Send a JSONRPC message to CONNECTION as a newline-delimited JSON line."
+  "Send a JSONRPC message, described by ARGS, to CONNECTION.
+Write the message as a single newline-delimited JSON line."
   (when method
     ;; Sanitize method into a string (mirrors what
     ;; `jsonrpc-process-connection' does for envelope mode)

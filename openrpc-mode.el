@@ -72,8 +72,8 @@
   :group 'openrpc-mode)
 
 (defcustom openrpc-mode-use-envelope t
-  "Whether to use the HTTP Content-Length envelope for JSONRPC.
-Non-nil (the default) uses `jsonrpc-process-connection', which
+  "Non-nil if OpenRPC uses the HTTP Content-Length envelope.
+The default value uses `jsonrpc-process-connection', which
 transmits messages with Content-Length headers.
 
 When nil, uses `jsonrpc-noenvelope' instead, which sends and
@@ -153,8 +153,8 @@ property."
 ;;; Connection management
 
 (defun openrpc-mode--on-shutdown (conn)
-  "Called when JSONRPC connection CONN is shut down.
-Keeps the results buffer intact for browsing."
+  "Handle shutdown of JSONRPC connection CONN.
+Keep the results buffer intact for browsing."
   (when-let* ((buffer (get-buffer openrpc-mode-buffer-name)))
     (with-current-buffer buffer
       ;; Keep `openrpc-mode--connection' and `openrpc-mode--methods'
@@ -174,8 +174,8 @@ word is used as the base for the connection name."
 
 ;;;###autoload
 (defun openrpc-mode--find-buffer (command)
-  "Return an existing `openrpc-mode' buffer for COMMAND with a
-living connection, or nil."
+  "Return the live `openrpc-mode' buffer for COMMAND, or nil.
+The buffer must have a running connection for the same COMMAND."
   (cl-find-if
    (lambda (buf)
      (with-current-buffer buf
@@ -309,8 +309,7 @@ CONN is the `jsonrpc-process-connection'."
 
 (defun openrpc-mode-revert (&optional _ignore-auto _noconfirm)
   "Re-issue the `rpc.discover' request and refresh the buffer.
-If the previous connection died, starts a fresh one using the
-last command."
+If the connection is dead, signal an error."
   (interactive)
   (let ((conn openrpc-mode--connection))
     (cond
@@ -406,7 +405,7 @@ endpoint."
 
 (defun openrpc-mode-test-connection ()
   "Send a simple ping to test the connection.
-Interactively prompts for a method to call."
+Prompt for a method to call."
   (interactive)
   (let ((conn (and (derived-mode-p 'openrpc-mode)
                    openrpc-mode--connection)))
@@ -433,7 +432,7 @@ Interactively prompts for a method to call."
 ;;; Cleanup
 
 (defun openrpc-mode-shutdown ()
-  "Shutdown the current OpenRPC connection and cleanup buffers."
+  "Shut down the current OpenRPC connection and clean up buffers."
   (interactive)
   (when (and openrpc-mode--connection
              (jsonrpc-running-p openrpc-mode--connection))
