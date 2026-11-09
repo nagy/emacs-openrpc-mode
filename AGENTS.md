@@ -11,21 +11,24 @@ package launches it as a subprocess, sends an `rpc.discover` request through
 the built-in `jsonrpc` library, and renders the discovered methods in a
 `tabulated-list-mode` buffer.
 
-Targets GNU Emacs >= 30.1. License is AGPL-3.0-or-later in every file. The
-package is small: three Elisp files, two transports (Content-Length envelope
-and raw newline-delimited JSON), and two persistence integrations (Emacs
-bookmarks and Org `openrpc:` links).
+Targets GNU Emacs >= 31.1 (Emacs 31 bundles jsonrpc 1.0.29, which honours
+`:jsonrpc-omit`; 30.2 bundles 1.0.25, which rejects it). License is
+AGPL-3.0-or-later in every file. The package is small: four Elisp files, three
+transports (Content-Length envelope, plus the raw newline-delimited JSON ones
+`jsonrpc-noenvelope` and `jsonrpc-linepipe`), and two persistence integrations
+(Emacs bookmarks and Org `openrpc:` links).
 
 ## Repository layout
 
 |File                   |Role                                                                                 |
 |-----------------------|-------------------------------------------------------------------------------------|
 |`openrpc-mode.el`      |Main mode: discover, tabulated list, method detail, bookmarks, shutdown, events log  |
-|`jsonrpc-noenvelope.el`|Raw newline-delimited-JSON transport (EIEIO subclass of `jsonrpc-process-connection`)|
+|`jsonrpc-noenvelope.el`|Raw newline-JSON transport that re-parses messages itself (subclass of `jsonrpc-process-connection`)|
+|`jsonrpc-linepipe.el`  |Raw newline-JSON transport that re-frames lines and reuses the stock `jsonrpc--process-filter`|
 |`ol-openrpc.el`        |Org `openrpc:` link type (follow / complete / store)                                 |
 |`test-server.sh`       |Manual fixture: Content-Length envelope transport, single-shot                       |
 |`test-server-raw.sh`   |Manual fixture: raw newline-JSON transport, looping, `--ready` mode                  |
-|`flake.nix`            |flake-parts packaging: `openrpc-mode` + `jsonrpc-noenvelope` packages, devShell, treefmt|
+|`flake.nix`            |flake-parts packaging: `openrpc-mode` + both `jsonrpc-*` transport packages, devShell, treefmt|
 |`flake.lock`           |Pinned flake inputs (nixpkgs, flake-parts, treefmt-nix)                               |
 |`README.org`           |User documentation (minimal)                                                         |
 
@@ -37,7 +40,7 @@ flake sets `turnCompilationWarningToError = true` on both packages.
 ```sh
 # Byte-compile (fast, verified)
 emacs -Q --batch -L . -f batch-byte-compile \
-  openrpc-mode.el ol-openrpc.el jsonrpc-noenvelope.el
+  openrpc-mode.el ol-openrpc.el jsonrpc-noenvelope.el jsonrpc-linepipe.el
 
 # checkdoc (warnings are printed to the message buffer)
 emacs -Q --batch -L . --eval '(checkdoc-file "openrpc-mode.el")'
@@ -49,8 +52,8 @@ nix build
 nix flake check
 nix fmt
 
-# Dev shell (`nix-shell` and `default.nix`/`shell.nix` are gone)
-nix develop
+# Dev shell comes from `flake.nix` (`nix-shell` and `default.nix`/`shell.nix`
+# are gone): `nix develop`
 
 ```
 
@@ -81,14 +84,20 @@ answering `rpc.discover`.
 
 ## Critical constraints
 
-- **Two transports.** Default is the Content-Length envelope transport
-  (`jsonrpc-process-connection`). Raw newline-delimited JSON uses
-  `jsonrpc-noenvelope`, selected by prefix argument or the
-  `openrpc-mode-use-envelope` defcustom. Never assume one transport.
-- **`jsonrpc-noenvelope` is a separate package**, declared in
-  `Package-Requires`. The flake now builds it as its own derivation with
-  `fileSpecs = [ "jsonrpc-noenvelope.el" ]` (no more accidental `*.el`
-  bundling). Treat it as standalone: its changes ship independently.
+- **Three transports, two classes.** Default is the Content-Length envelope
+  transport (`jsonrpc-process-connection`). Raw newline-delimited JSON is
+  served by either `jsonrpc-noenvelope` (hand-rolled parser) or
+  `jsonrpc-linepipe` (re-frames lines, reuses `jsonrpc--process-filter`), still
+  selected by prefix argument or the `openrpc-mode-use-envelope` defcustom.
+  Prefer `jsonrpc-linepipe`: it is ~30 lines and inherits upstream buffering,
+  queueing, dispatch and the bug#60088 reentrancy guard.
+- **`jsonrpc-noenvelope` and `jsonrpc-linepipe` are separate packages**,
+  declared in `Package-Requires`. The flake builds each as its own derivation
+  with a single-file `fileSpecs` (no accidental `*.el` bundling). Treat them as
+  standalone: their changes ship independently.
+- **Emacs 31.1 floor.** `:jsonrpc-omit` (used for `rpc.discover`) requires
+  jsonrpc >= 1.0.29, which Emacs 31 bundles. Do not lower `Package-Requires`
+  or point the flake at `pkgs.emacs`/`emacs30`.
 - **Flake sources are git-tracked files only.** `lib.cleanSource ./.` sees just
   what git knows, so an untracked `*.el` is invisible to `nix build` (it fails
   with `Missing library "jsonrpc-noenvelope.el" matching package name`). Always

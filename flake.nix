@@ -17,6 +17,15 @@
       treefmt-nix,
       ...
     }:
+    # Date of the last commit as YYYY-MM-DD, folded into the version
+    # string below.  Flake source info gives it as e.g. "20260922133522",
+    # so slice out the year, month and day and glue them with hyphens.
+    let
+      lastModifiedDate = inputs.self.sourceInfo.lastModifiedDate;
+      commitDate = "${builtins.substring 0 4 lastModifiedDate}-${
+        builtins.substring 4 2 lastModifiedDate
+      }-${builtins.substring 6 2 lastModifiedDate}";
+    in
     flake-parts.lib.mkFlake { inherit inputs; } {
       # Emacs packages are pure Elisp: no ELF binaries, so evaluate on both
       # Linux architectures. nixpkgs carries Emacs and its package set for
@@ -36,8 +45,9 @@
         let
           # Emacs the package depends on, with the package set that goes
           # with it, so jsonrpc is built against the same Emacs as the
-          # package itself.
-          emacsPackages = pkgs.emacsPackagesFor pkgs.emacs;
+          # package itself.  Emacs 31 is the floor: its bundled jsonrpc
+          # honours `:jsonrpc-omit', which 30.2's bundled 1.0.25 rejects.
+          emacsPackages = pkgs.emacsPackagesFor pkgs.emacs31;
           inherit (emacsPackages) melpaBuild;
 
           # Same Elisp sources feed melpaBuild and trivialBuild; keep the
@@ -46,30 +56,51 @@
 
           # Version string follows the nixpkgs convention for unreleased
           # sources: <upstream-version>-unstable-<date of last source commit>.
-          version = "0.1.0-unstable-2026-08-10";
+          # Derived from the flake's source info above, so it never goes
+          # stale.
+          version = "0.1.0-unstable-${commitDate}";
 
-          # jsonrpc-noenvelope lives in this repo but ships as a separate
-          # package (see AGENTS.md). Build it on its own so openrpc-mode can
-          # list it under packageRequires as a real derivation.
+          # jsonrpc transports live in this repo but ship as separate
+          # packages (see AGENTS.md). Build them on their own so
+          # openrpc-mode can list them under packageRequires as real
+          # derivations.  Both are standalone alternatives: pick one class
+          # per endpoint, not both at once.
+          jsonrpcTransportMeta = description: longDescription: {
+            inherit description longDescription;
+            license = lib.licenses.agpl3Plus;
+            homepage = "https://github.com/nagy/emacs-openrpc-mode";
+            maintainers = with lib.maintainers; [ nagy ];
+            platforms = lib.platforms.linux;
+          };
+
           jsonrpc-noenvelope = melpaBuild {
             pname = "jsonrpc-noenvelope";
             inherit version src;
             fileSpecs = [ "jsonrpc-noenvelope.el" ];
             packageRequires = [ emacsPackages.jsonrpc ];
             turnCompilationWarningToError = true;
-            meta = {
-              description = "JSON-RPC over stdio without the HTTP Content-Length envelope";
-              longDescription = ''
-                A subclass of `jsonrpc-process-connection' for endpoints that
-                speak JSON-RPC 2.0 as newline-delimited JSON objects instead
-                of the HTTP-style Content-Length framing used by the stock
-                jsonrpc library.
-              '';
-              license = lib.licenses.agpl3Plus;
-              homepage = "https://github.com/nagy/emacs-openrpc-mode";
-              maintainers = with lib.maintainers; [ nagy ];
-              platforms = lib.platforms.linux;
-            };
+            meta = jsonrpcTransportMeta "JSON-RPC over stdio without the HTTP Content-Length envelope" ''
+              A subclass of `jsonrpc-process-connection' for endpoints that
+              speak JSON-RPC 2.0 as newline-delimited JSON objects instead
+              of the HTTP-style Content-Length framing used by the stock
+              jsonrpc library.
+            '';
+          };
+
+          jsonrpc-linepipe = melpaBuild {
+            pname = "jsonrpc-linepipe";
+            inherit version src;
+            fileSpecs = [ "jsonrpc-linepipe.el" ];
+            packageRequires = [ emacsPackages.jsonrpc ];
+            turnCompilationWarningToError = true;
+            meta = jsonrpcTransportMeta "Newline-framed JSON-RPC reusing the stock jsonrpc process filter" ''
+              A subclass of `jsonrpc-process-connection' for endpoints that
+              speak JSON-RPC 2.0 as newline-delimited JSON objects.  Unlike
+              `jsonrpc-noenvelope', it keeps the stock
+              `jsonrpc--process-filter' and re-frames each incoming line as
+              a synthetic Content-Length envelope, so buffering, dispatch
+              and events logging stay upstream.
+            '';
           };
 
           openrpc-mode = melpaBuild {
@@ -124,6 +155,7 @@
           packages = {
             openrpc-mode = openrpc-mode;
             jsonrpc-noenvelope = jsonrpc-noenvelope;
+            jsonrpc-linepipe = jsonrpc-linepipe;
             default = openrpc-mode;
           };
 
@@ -133,9 +165,10 @@
             # local jsonrpc-noenvelope is on the load path too, otherwise
             # `require' fails when hacking on openrpc-mode.el.
             packages = [
-              pkgs.emacs
+              pkgs.emacs31
               emacsPackages.jsonrpc
               jsonrpc-noenvelope
+              jsonrpc-linepipe
             ];
           };
 

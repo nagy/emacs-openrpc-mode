@@ -4,7 +4,7 @@
 
 ;; Author: Daniel Nagy
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "30.1") (jsonrpc "1.0") (jsonrpc-noenvelope "0.1.0"))
+;; Package-Requires: ((emacs "31.1") (jsonrpc-noenvelope "0.1.0"))
 ;; Keywords: tools, comm, languages
 ;; URL: https://github.com/nagy/emacs-openrpc-mode
 
@@ -49,10 +49,9 @@
 ;;
 ;;; Code:
 
-;; NOTE: When compiling in batch mode for Nix/guix, you may need
-;; to add these directories to the load-path:
-;;   -L …/site-lisp/elpa/jsonrpc-1.0.28
-;;   -L …/site-lisp/elpa/anaphora-1.0.6
+;; NOTE: Emacs 31.1 bundles jsonrpc 1.0.29, which honours the
+;; `:jsonrpc-omit' keyword.  On Emacs 30.2 the bundled jsonrpc 1.0.25
+;; rejects it and `rpc.discover' fails, so 31.1 is the floor.
 (require 'jsonrpc)
 (require 'jsonrpc-noenvelope)
 (require 'tabulated-list)
